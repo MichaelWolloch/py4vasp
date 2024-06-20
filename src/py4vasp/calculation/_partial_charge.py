@@ -207,17 +207,19 @@ class PartialCharge(_base.Refinery, _structure.Mixin):
         splines = interpolate.CubicSpline(range(grid[2]), smoothed_charge, axis=-1)
         scan = z_grid[np.argmax(splines(z_grid) >= current, axis=-1)]
         scan = z_step * (scan - scan.min())
-        spin_label = "both spin channels" if spin == "total" else f"spin {spin}"
+        spin_label = self._get_spin_label(spin)
         topology = self._topology()
-        label = f"STM of {topology} for {spin_label} at constant current={current*1e9:.2f} nA"
+        label = (
+            f"STM of {topology} {spin_label} at constant current={current*1e9:.2f} nA"
+        )
         return Contour(data=scan, lattice=self._get_stm_plane(), label=label)
 
     def _constant_height_stm(self, smoothed_charge, tip_height, spin, stm_settings):
         zz = self._z_index_for_height(tip_height + self._get_highest_z_coord())
         height_scan = smoothed_charge[:, :, zz] * stm_settings.enhancement_factor
-        spin_label = "both spin channels" if spin == "total" else f"spin {spin}"
+        spin_label = self._get_spin_label(spin)
         topology = self._topology()
-        label = f"STM of {topology} for {spin_label} at constant height={float(tip_height):.2f} Angstrom"
+        label = f"STM of {topology} {spin_label} at constant height={float(tip_height):.2f} Angstrom"
         return Contour(data=height_scan, lattice=self._get_stm_plane(), label=label)
 
     def _z_index_for_height(self, tip_height):
@@ -296,6 +298,16 @@ class PartialCharge(_base.Refinery, _structure.Mixin):
 
     def _spin_polarized(self):
         return self._raw_data.partial_charge.shape[2] == 2
+
+    def _get_spin_label(self, spin):
+        if not self._spin_polarized():
+            if spin:
+                message = """A specific spin channel is requested,
+                but the partial charge density is not spin polarized.
+                Returning the non-polarized density instead."""
+                warnings.warn(message, UserWarning)
+            return ""
+        return " for both spin channels" if spin == "total" else f" for spin {spin}"
 
     @_base.data_access
     def to_numpy(self, selection="total", band=0, kpoint=0):

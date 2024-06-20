@@ -308,7 +308,7 @@ def test_to_stm_nonsplit_constant_current_non_ortho(
     # check different elements of the label
     assert type(actual.series.label) is str
     expected = "both spin channels" if spin == "total" else f"spin {spin}"
-    assert expected in actual.series.label
+    assert expected not in actual.series.label
     assert "constant current" in actual.series.label
     assert f"{current:.2f}" in actual.series.label
     assert "constant current" in actual.title
@@ -368,6 +368,33 @@ def test_interpolation_setting_change(PolarizedNonSplitPartialCharge, not_core):
         "constant_current", current=1, stm_settings=interp_settings
     )
     assert not np.allclose(graph_def.series.data, graph_less_interp_points.series.data)
+
+
+def test_title_polarised_constant_height(
+    PolarizedNonSplitPartialCharge, not_core, spin
+):
+    actual_title = PolarizedNonSplitPartialCharge.to_stm(
+        selection=f"constant_height ({spin})", tip_height=2.2
+    ).title
+    expected_topo = PolarizedNonSplitPartialCharge.ref.structure._topology()
+    assert str(expected_topo) in actual_title
+    assert "constant height=2.20 Angstrom" in actual_title
+    if spin == "total":
+        assert "both spin channels" in actual_title
+    else:
+        assert f"for spin {spin}" in actual_title
+
+
+def test_title_nonpolarized_constant_current(NonSplitPartialCharge, not_core, spin):
+    with pytest.warns(UserWarning):
+        actual_title = NonSplitPartialCharge.to_stm(
+            selection=f"{spin}(constant_current)", current=220
+        ).title
+    expected_topo = NonSplitPartialCharge.ref.structure._topology()
+    assert str(expected_topo) in actual_title
+    assert "constant current=220.00 nA" in actual_title
+    assert f"for spin {spin}" not in actual_title
+    assert "both spin channels" not in actual_title
 
 
 def test_factory_methods(raw_data, check_factory_methods):
